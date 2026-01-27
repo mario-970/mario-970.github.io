@@ -1,3 +1,3 @@
-# pianfan.github.io
+# mario-970.github.io
 
-My Personal Blog via GitHub
+mario's personal blog
