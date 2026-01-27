@@ -2,7 +2,7 @@ name: "mario's blog"
 description: "mario的个人博客"
 
 avatar: https://mario-970.github.io/images/mario.png
-favicon: 
+favicon: https://mario-970.github.io/images/mario.png
 
 navigation:
   - name: 首页
