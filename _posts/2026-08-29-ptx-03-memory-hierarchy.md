@@ -41,6 +41,10 @@ grid
  └─ global：所有线程可见，容量最大
 ```
 
+![Memory Hierarchy](/images/ptx/memory-hierarchy-with-clusters.png)
+
+*图 3：Memory Hierarchy（官方文档 §2.3 Figure 3）——内存层级全景：线程私有的 local，CTA 的 shared（cluster 内活跃 block 也可见），以及所有线程共享的 global；自 `sm_90` 起引入 cluster 层。*
+
 **第二句，生命周期。** global、constant、texture 这三个状态空间**跨 kernel 启动持久**——同一次应用先后多次启动 kernel，它们的数据还在。而 shared 的生命周期只跟 block 绑定：block 结束，shared 也就没了。
 
 **第三句，四个额外状态空间。** 所有线程还能访问 constant、param、texture、surface：

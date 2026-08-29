@@ -38,6 +38,16 @@ GPU 是主 CPU（host）的协处理器，数据并行、计算密集的部分�
 
 **§2.2.3 grid** CTA 有最大线程数、cluster 有最大 CTA 数；但跑同一 kernel 的 cluster 可批量放进一个 grid，使单次启动的线程总数极大，代价是不同 cluster 间不能通信同步。每个 cluster 在 grid 内有唯一 `clusterid`，grid 形状由 `nclusterid` 指定，另有全局时序标识 `gridid`；寄存器 `%clusterid`/`%nclusterid`/`%gridid`。每个 CTA 在 grid 内有唯一 `ctaid`，grid 形状由 `nctaid` 指定；寄存器 `%ctaid`/`%nctaid`。整体上，kernel = 一批线程，组织成「grid of clusters」，其中 cluster 是仅 `sm_90+` 的可选层。
 
+官方文档用两张图分别展示这两种 grid 形态：
+
+![Grid with CTAs](/images/ptx/grid-with-CTAs.png)
+
+*图 1：Grid with CTAs（官方文档 §2.2.3 Figure 1）——grid 直接由若干 CTA 组成。*
+
+![Grid with clusters](/images/ptx/grid-with-clusters.png)
+
+*图 2：Grid with clusters（官方文档 §2.2.3 Figure 2）——grid 由若干 cluster 组成，cluster 内再是若干 CTA。*
+
 层级结构如下：
 
 ```text
