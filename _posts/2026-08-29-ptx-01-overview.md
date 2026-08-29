@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "PTX 全景：ISA 是什么、解决什么问题"
+permalink: /ptx/01-overview/
 date: 2026-08-29 00:00:00 +0800
 tags: [PTX]
 ---

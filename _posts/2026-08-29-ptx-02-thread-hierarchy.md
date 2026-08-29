@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "编程模型·线程层级：从线程到 CTA、Cluster、Grid"
+permalink: /ptx/02-thread-hierarchy/
 date: 2026-08-29 12:00:00 +0800
 tags: [PTX]
 ---

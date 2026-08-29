@@ -1,6 +1,7 @@
 ---
 layout: post
 title: "编程模型·内存层级：寄存器到全局内存的距离"
+permalink: /ptx/03-memory-hierarchy/
 date: 2026-08-29 18:00:00 +0800
 tags: [PTX]
 ---
