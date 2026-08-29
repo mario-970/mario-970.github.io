@@ -67,7 +67,7 @@ __global__ void addKernel(float *a, float *b, float *c) {
 
 真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，原样贴入）：
 
-```ptx
+```nasm
 .visible .entry addKernel(float*, float*, float*)(
         .param .u64 addKernel(float*, float*, float*)_param_0,
         .param .u64 addKernel(float*, float*, float*)_param_1,
