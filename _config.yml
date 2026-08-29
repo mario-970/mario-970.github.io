@@ -29,6 +29,7 @@ url: https://mario-970.github.io
 
 permalink: /:title/
 paginate_path: /page:num/
+future: true
 
 # Gitalk
 gitalk:
