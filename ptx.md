@@ -22,7 +22,7 @@ PTX（Parallel Thread Execution）学习专栏：从零读懂 GPU 汇编。
 | 04 | [机器模型·SIMT：一个 warp 如何执行](/ptx/04-simt-machine-model/) | §3.1–3.2 | 已完成 |
 | 05 | [机器模型·片上共享内存](/ptx/05-on-chip-shared-memory/) | §3.3 | 已完成 |
 | 06 | [语法·语句与标识符](/ptx/06-syntax-statements-identifiers/) | §4.1–4.4 | 已完成 |
-| 07 | 语法·常量：整数、浮点、谓词 | §4.5–4.5.3 | 待写 |
+| 07 | [语法·常量：整数、浮点、谓词](/ptx/07-constants/) | §4.5–4.5.3 | 已完成 |
 | 08 | 语法·常量表达式求值规则 | §4.5.4–4.5.6 | 待写 |
 
 ## 状态空间、类型与操作数
