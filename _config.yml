@@ -29,6 +29,15 @@ permalink: /:title/
 paginate_path: /page:num/
 future: true
 
+# 所有文章默认开启右侧目录
+defaults:
+  -
+    scope:
+      path: ""
+      type: "posts"
+    values:
+      toc: true
+
 # Gitalk
 gitalk:
   clientID: cba98a0db83eb062c0f8
