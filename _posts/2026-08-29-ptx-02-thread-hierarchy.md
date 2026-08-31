@@ -77,39 +77,28 @@ __global__ void idxKernel(int *out) {
 }
 ```
 
-真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，原样贴入）：
+真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，指令原样贴入，行尾 `//` 注释是我标注的对应 CUDA 源码行）：
 
 ```nasm
 .visible .entry idxKernel(int*)(
         .param .u64 idxKernel(int*)_param_0
 )
 {
-
-        ld.param.u64    %rd1, [idxKernel(int*)_param_0];
-        cvta.to.global.u64      %rd2, %rd1;
-        mov.u32         %r1, %tid.x;
-        st.global.u32   [%rd2], %r1;
-        mov.u32         %r2, %ctaid.x;
-        st.global.u32   [%rd2+4], %r2;
-        mov.u32         %r3, %ntid.x;
-        st.global.u32   [%rd2+8], %r3;
-        mov.u32         %r4, %nctaid.x;
-        st.global.u32   [%rd2+12], %r4;
+        ld.param.u64    %rd1, [idxKernel(int*)_param_0];   // 读参数 out 指针
+        cvta.to.global.u64      %rd2, %rd1;                // out 转 global 地址
+        mov.u32         %r1, %tid.x;                       // threadIdx.x
+        st.global.u32   [%rd2], %r1;                       // out[0] = threadIdx.x
+        mov.u32         %r2, %ctaid.x;                     // blockIdx.x
+        st.global.u32   [%rd2+4], %r2;                     // out[1] = blockIdx.x
+        mov.u32         %r3, %ntid.x;                      // blockDim.x
+        st.global.u32   [%rd2+8], %r3;                     // out[2] = blockDim.x
+        mov.u32         %r4, %nctaid.x;                    // gridDim.x
+        st.global.u32   [%rd2+12], %r4;                    // out[3] = gridDim.x
         ret;
-
 }
 ```
 
-逐行讲解：
-
-- `ld.param.u64 %rd1, [...]` + `cvta.to.global.u64 %rd2, %rd1`：把参数 `out` 指针转成全局地址，放进 `%rd2`。
-- `mov.u32 %r1, %tid.x`：读特殊寄存器 `%tid.x`，即 `threadIdx.x`。
-- `st.global.u32 [%rd2], %r1`：写 `out[0]`。
-- `mov.u32 %r2, %ctaid.x` → `out[1]`：即 `blockIdx.x`。
-- `mov.u32 %r3, %ntid.x` → `out[2]`：即 `blockDim.x`。
-- `mov.u32 %r4, %nctaid.x` → `out[3]`：即 `gridDim.x`。
-
-对应关系一目了然：
+逐行对应已标在注释里。每条都是「读特殊寄存器 → 存全局内存」两步，寄存器名与 CUDA 变量的对应见下表：
 
 | CUDA 内置变量 | PTX 特殊寄存器 | 含义 |
 |--------------|----------------|------|

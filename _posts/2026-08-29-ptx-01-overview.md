@@ -66,7 +66,7 @@ __global__ void addKernel(float *a, float *b, float *c) {
 }
 ```
 
-真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，原样贴入）：
+真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，指令原样贴入，行尾 `//` 注释是我标注的对应 CUDA 源码行）：
 
 ```nasm
 .visible .entry addKernel(float*, float*, float*)(
@@ -75,38 +75,26 @@ __global__ void addKernel(float *a, float *b, float *c) {
         .param .u64 addKernel(float*, float*, float*)_param_2
 )
 {
-
-        ld.param.u64    %rd1, [addKernel(float*, float*, float*)_param_0];
-        ld.param.u64    %rd2, [addKernel(float*, float*, float*)_param_1];
-        ld.param.u64    %rd3, [addKernel(float*, float*, float*)_param_2];
-        cvta.to.global.u64      %rd4, %rd3;
-        cvta.to.global.u64      %rd5, %rd2;
-        cvta.to.global.u64      %rd6, %rd1;
-        mov.u32         %r1, %tid.x;
-        mul.wide.s32    %rd7, %r1, 4;
-        add.s64         %rd8, %rd6, %rd7;
-        ld.global.f32   %f1, [%rd8];
-        add.s64         %rd9, %rd5, %rd7;
-        ld.global.f32   %f2, [%rd9];
-        add.f32         %f3, %f1, %f2;
-        add.s64         %rd10, %rd4, %rd7;
-        st.global.f32   [%rd10], %f3;
+        ld.param.u64    %rd1, [addKernel(float*, float*, float*)_param_0];   // 读参数 a（float*）
+        ld.param.u64    %rd2, [addKernel(float*, float*, float*)_param_1];   // 读参数 b（float*）
+        ld.param.u64    %rd3, [addKernel(float*, float*, float*)_param_2];   // 读参数 c（float*）
+        cvta.to.global.u64      %rd4, %rd3;         // c 转 global 地址
+        cvta.to.global.u64      %rd5, %rd2;         // b 转 global 地址
+        cvta.to.global.u64      %rd6, %rd1;         // a 转 global 地址
+        mov.u32         %r1, %tid.x;                // int i = threadIdx.x;
+        mul.wide.s32    %rd7, %r1, 4;               // i * 4（float 占 4 字节）
+        add.s64         %rd8, %rd6, %rd7;           // a[i] 的字节地址
+        ld.global.f32   %f1, [%rd8];                // 读 a[i]
+        add.s64         %rd9, %rd5, %rd7;           // b[i] 的字节地址
+        ld.global.f32   %f2, [%rd9];                // 读 b[i]
+        add.f32         %f3, %f1, %f2;              // a[i] + b[i]
+        add.s64         %rd10, %rd4, %rd7;          // c[i] 的字节地址
+        st.global.f32   [%rd10], %f3;               // c[i] = a[i] + b[i]
         ret;
-
 }
 ```
 
-逐行讲解（点到为止，细节留到后面各期）：
-
-- `.visible .entry` 声明一个**内核入口**：`.entry` 表示这是可被主机端调用的内核，`.visible` 表示对外可见。
-- `.param .u64` 是三个**参数**，每个都是 64 位无符号整数——这里是三个 `float*` 指针。
-- `ld.param.u64 %rd1, [...]` 从**参数状态空间**读出指针，放进 64 位寄存器 `%rd1`。
-- `cvta.to.global.u64` 做**地址转换**，把「泛型地址」转成「全局地址」（第 32 期展开）。
-- `mov.u32 %r1, %tid.x` 读取特殊寄存器 `%tid.x`（即 `threadIdx.x`）到 32 位寄存器 `%r1`（第 42 期展开）。
-- `mul.wide.s32 %rd7, %r1, 4` 计算 `i * 4`，因为 `float` 占 4 字节，得到字节偏移。
-- `ld.global.f32 %f1, [%rd8]` 从**全局状态空间**读 `a[i]` 到浮点寄存器 `%f1`（第 31 期展开）。
-- `add.f32 %f3, %f1, %f2` 执行真正的加法。
-- `st.global.f32 [%rd10], %f3` 把结果写回全局内存 `c[i]`。
+逐行对应已标在注释里。几个跨指令的语义点：`.visible .entry` 中 `.entry` 声明这是可被主机端调用的**内核入口**、`.visible` 表示对外可见；三个 `.param .u64` 参数各是 64 位无符号整数（即三个 `float*` 指针）；`cvta.to.global.u64` 做**地址转换**，把泛型地址转成全局地址（第 32 期展开）。至于 `%tid.x` 特殊寄存器（第 42 期）、`ld.global`/`st.global` 全局访存（第 31 期），后面各期会专门展开。
 
 这一段已经能看到 PTX 的三个特征：**显式状态空间**（`.param`/`.global`）、**类型化寄存器**（`%rd` 64 位、`%r` 32 位、`%f` 浮点）、**一条指令一个操作**的 RISC 风格。
 

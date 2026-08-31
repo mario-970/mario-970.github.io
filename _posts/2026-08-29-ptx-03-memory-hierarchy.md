@@ -76,7 +76,7 @@ __global__ void memKernel(float *out, const float *in) {
 }
 ```
 
-真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，原样贴入）：
+真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`，指令原样贴入，行尾 `//` 注释是我标注的对应 CUDA 源码行）：
 
 ```nasm
 .visible .entry memKernel(float*, float const*)(
@@ -84,45 +84,37 @@ __global__ void memKernel(float *out, const float *in) {
         .param .u64 memKernel(float*, float const*)_param_1
 )
 {
-
-        ld.param.u64    %rd1, [memKernel(float*, float const*)_param_0];
-        ld.param.u64    %rd2, [memKernel(float*, float const*)_param_1];
-        cvta.to.global.u64      %rd3, %rd1;
-        cvta.to.global.u64      %rd4, %rd2;
-        mov.u32         %r1, %tid.x;
-        mul.wide.s32    %rd5, %r1, 4;
-        add.s64         %rd6, %rd4, %rd5;
-        ld.global.f32   %f1, [%rd6];
-        shl.b32         %r2, %r1, 2;
-        mov.u32         %r3, memKernel(float*, float const*)::tile;
-        add.s32         %r4, %r3, %r2;
-        st.shared.f32   [%r4], %f1;
-        bar.sync        0;
-        add.s32         %r5, %r2, 4;
-        and.b32         %r6, %r5, 508;
-        add.s32         %r7, %r3, %r6;
-        ld.shared.f32   %f2, [%r7];
-        ld.const.f32    %f3, [kConst];
-        mul.f32         %f4, %f2, %f3;
-        add.s64         %rd7, %rd3, %rd5;
-        st.global.f32   [%rd7], %f4;
+        ld.param.u64    %rd1, [memKernel(float*, float const*)_param_0];   // 读参数 out
+        ld.param.u64    %rd2, [memKernel(float*, float const*)_param_1];   // 读参数 in
+        cvta.to.global.u64      %rd3, %rd1;         // out 转 global 地址
+        cvta.to.global.u64      %rd4, %rd2;         // in 转 global 地址
+        mov.u32         %r1, %tid.x;                // int i = threadIdx.x;
+        mul.wide.s32    %rd5, %r1, 4;               // i * 4（字节偏移）
+        add.s64         %rd6, %rd4, %rd5;           // in[i] 的字节地址
+        ld.global.f32   %f1, [%rd6];                // 读 in[i]
+        shl.b32         %r2, %r1, 2;                // i * 4（字节偏移）
+        mov.u32         %r3, memKernel(float*, float const*)::tile;   // tile 的 shared 基址
+        add.s32         %r4, %r3, %r2;              // tile[i] 的 shared 地址
+        st.shared.f32   [%r4], %f1;                 // tile[i] = in[i]
+        bar.sync        0;                          // __syncthreads()
+        add.s32         %r5, %r2, 4;                // (i+1)*4
+        and.b32         %r6, %r5, 508;              // ((i+1) & 127) 的字节偏移
+        add.s32         %r7, %r3, %r6;              // tile[(i+1)&127] 的 shared 地址
+        ld.shared.f32   %f2, [%r7];                 // 读 tile[(i+1)&127]
+        ld.const.f32    %f3, [kConst];              // 读常量 kConst
+        mul.f32         %f4, %f2, %f3;              // ... * kConst
+        add.s64         %rd7, %rd3, %rd5;           // out[i] 的字节地址
+        st.global.f32   [%rd7], %f4;                // out[i] = 结果
         ret;
-
 }
 ```
 
-逐行讲解：
+逐行对应已标在注释里，这里只补几个注释里放不下的语义：
 
-- `ld.param.u64 %rd1/%rd2, [...]`：从 **param** 状态空间读出两个参数指针（`out` 和 `in`）。
-- `cvta.to.global.u64`：把参数里的泛型地址转换成 **global** 地址（第 32 期展开）。
-- `mov.u32 %r1, %tid.x`：`int i = threadIdx.x` 落在**寄存器** `%r1`——普通局部变量最常待的地方，这是「线程私有」这一层里离计算单元最近的存储。
-- `ld.global.f32 %f1, [%rd6]`：从 **global** 读 `in[i]`。
-- `mov.u32 %r3, memKernel(...)::tile` + `shl.b32` + `add.s32`：算出 `tile[i]` 的 **shared** 地址。注意 `::tile` 是编译器为 shared 数组分配的符号，取出来就是它在 shared 空间里的基址；`shl.b32 %r2, %r1, 2` 算出字节偏移（`i * 4`）。
-- `st.shared.f32 [%r4], %f1`：写 **shared** 的 `tile[i]`。
-- `bar.sync 0`：`__syncthreads()` 编译成的同步屏障（第 35 期展开）。
-- `ld.shared.f32 %f2, [%r7]`：从 **shared** 读 `tile[(i + 1) & 127]`。其中 `add.s32 %r5, %r2, 4` 算 `(i+1)*4`，`and.b32 %r6, %r5, 508` 是「取模 128」的强度削减——128 是 2 的幂，`(i+1) & 127` 等价于模 128，字节偏移上再乘 4 就是 `& 508`。
-- `ld.const.f32 %f3, [kConst]`：从 **constant** 读 `kConst`。注意它直接以符号名 `kConst` 寻址，不像 global 那样需要 `cvta` 转换——因为 constant 空间有自己独立的寻址方式。
-- `st.global.f32 [%rd7], %f4`：把结果写回 **global** 的 `out[i]`。
+- `mov.u32 %r3, memKernel(...)::tile`：`::tile` 是编译器为 shared 数组分配的符号，取出来就是它在 shared 空间里的基址。
+- `and.b32 %r6, %r5, 508`：这是「取模 128」的强度削减——128 是 2 的幂，`(i+1) & 127` 等价于模 128，字节偏移上再乘 4 就是 `& 508`。
+- `ld.const.f32 %f3, [kConst]`：直接以符号名 `kConst` 寻址，不像 global 那样需要 `cvta` 转换——constant 空间有独立的寻址方式。
+- `bar.sync 0` 是 `__syncthreads()` 编译成的同步屏障（第 35 期展开）；`cvta.to.global` 的地址转换细节留到第 32 期。
 
 把后缀和状态空间对照起来，一目了然：
 
