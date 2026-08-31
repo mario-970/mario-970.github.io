@@ -1,7 +1,5 @@
-name: "mario's blog"
-description: "mario的个人博客"
+name: "Mario's Blog"
 
-avatar: https://mario-970.github.io/images/mario.png
 favicon: https://mario-970.github.io/images/mario.png
 
 navigation:
