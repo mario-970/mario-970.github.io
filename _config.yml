@@ -7,6 +7,8 @@ navigation:
     url: /
   - name: PTX 专栏
     url: /ptx/
+  - name: 算子日报
+    url: /operator-daily/
 
 paginate: 8
 
