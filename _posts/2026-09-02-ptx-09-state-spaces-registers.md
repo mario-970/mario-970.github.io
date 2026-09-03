@@ -93,6 +93,7 @@ __global__ void spillKernel(int *out, const int *in, int n) {
 
 真实 PTX（Compiler Explorer，NVCC 13.3.0，`-arch=sm_90a -ptx -O3`；中间大量重复的 `st.local` 已省略，指令原样摘录）：
 
+{% raw %}
 ```nasm
         mov.u64         %SPL, __local_depot0;            // 特殊寄存器 %SPL：指向本地内存基址
         ld.param.u64    %rd1, [spillKernel(...)_param_0]; // .param：读内核参数 out
@@ -108,6 +109,7 @@ __global__ void spillKernel(int *out, const int *in, int n) {
         st.global.u32   [%rd12], %r65;                   // .global：写 out[threadIdx.x]
         ret;
 ```
+{% endraw %}
 
 这段反汇编把五个状态空间串在一条链上，逐个看：
 
@@ -117,7 +119,7 @@ __global__ void spillKernel(int *out, const int *in, int n) {
 
 **`.param` 参数空间：`ld.param.u64 %rd1, [..._param_0]`。** 内核的三个入参 `out`、`in`、`n` 都在 `.param` 空间，用 `ld.param` 读进来。参数空间的细节留到第 10 期，这里只需看到它作为「内核入参的容器」登场。
 
-**`.local` 本地内存 + 寄存器溢出：`st.local.v4.u32 [%rd6], {%r4, %r3, %r2, %r1}`。** 这是本段最值得说的一行。源码里的 `int a[64]` 有 64 个 int（256 字节），远超出寄存器能容纳的量，而且后面用 `a[n & 63]` 动态索引——编译器既放不进寄存器、又无法静态确定访问哪个元素，于是把它「溢出（spill）」到本地内存：先 `ld.global` 从全局把 `in[i]` 读进寄存器，再用 `st.local.v4.u32` 把 4 个寄存器**打包**写进本地内存。`.v4.u32` 是 128 位向量寄存器（§5.1.1 说的「向量寄存器 128 位」），`{%r4, %r3, %r2, %r1}` 就是把 4 个 32 位寄存器拼成一个向量。这一来一去，就是 §5.1.1 那句「寄存器有限，超限溢出到内存」的活生生现场。
+**`.local` 本地内存 + 寄存器溢出：`st.local.v4.u32 [%rd6], { %r4, %r3, %r2, %r1 }`。** 这是本段最值得说的一行。源码里的 `int a[64]` 有 64 个 int（256 字节），远超出寄存器能容纳的量，而且后面用 `a[n & 63]` 动态索引——编译器既放不进寄存器、又无法静态确定访问哪个元素，于是把它「溢出（spill）」到本地内存：先 `ld.global` 从全局把 `in[i]` 读进寄存器，再用 `st.local.v4.u32` 把 4 个寄存器**打包**写进本地内存。`.v4.u32` 是 128 位向量寄存器（§5.1.1 说的「向量寄存器 128 位」），`{ %r4, %r3, %r2, %r1 }` 就是把 4 个 32 位寄存器拼成一个向量。这一来一去，就是 §5.1.1 那句「寄存器有限，超限溢出到内存」的活生生现场。
 
 **`.global` 全局内存：`ld.global.u32` 和 `st.global.u32`。** 开头从 `in` 读数据、结尾把结果写进 `out`，走的都是全局空间。
 
@@ -130,4 +132,4 @@ __global__ void spillKernel(int *out, const int *in, int n) {
 - 属性表最关键的一列是**可寻址性**：只有 `.reg`、`.sreg` 不可寻址，其余都可寻址。
 - 寄存器 `.reg`：快、有限、会溢出、可类型化、大小受限（标量 8–128 位、谓词 1 位、向量 16–128 位）、**不可寻址**。
 - 特殊寄存器 `.sreg`：只读、预定义、平台特定，如 `%tid`、`%SPL`。
-- 真实反汇编里，一个内核串起 `.param`→`.reg`→`.local`→`.sreg`→`.global` 五种空间；`st.local.v4.u32` 是寄存器溢出的直接体现，`{%r4,%r3,%r2,%r1}` 是 128 位向量寄存器。
+- 真实反汇编里，一个内核串起 `.param`→`.reg`→`.local`→`.sreg`→`.global` 五种空间；`st.local.v4.u32` 是寄存器溢出的直接体现，`{ %r4, %r3, %r2, %r1 }` 是 128 位向量寄存器。
