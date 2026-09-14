@@ -14,7 +14,7 @@ tags: [算子日报]
 
 - cuDNN Frontend 发布 **v1.29.0** 大版本：HSTU attention 完整内核族、DSA 稀疏 attention 前向闭环、实验性 Flex Attention、`torch.sdpa` 端到端改走 cuDNN Python API。
 - 另有两个次要发布：cuda-python **v13.4.1**（补丁）、cuda-quantum **0.16.0**（量子，与算子内核关联较弱）。
-- 芯片 RSS 无更新；arXiv 抓取今日受接口限流（HTTP 429）暂缺，待补录。
+- 芯片 RSS 无更新；arXiv 改走 RSS 兜底，收录 7 篇算子内核论文（EqiForge 张量超优化、Hopper 利用率拆解、BLAS 精度分级等）。
 
 ## 一、CUDA 开源仓 Release Notes（算子）
 
@@ -36,7 +36,15 @@ tags: [算子日报]
 
 ## 三、arXiv 论文（算子内核）
 
-> 本节今日受 arXiv API 持续限流（HTTP 429，重试仍失败）暂缺，待接口恢复后补录 09-05 ~ 09-13 提交的算子内核论文。
+> 注：arXiv 导出 API 今日持续 429（服务端 503 兜底），本节改由 arXiv RSS 兜底抓取，仅覆盖 09-14 公告批次（新提交，约 09-11 ~ 09-14）；09-05 ~ 09-10 的补录待 API 恢复后再做。
+
+- **[EqiForge: 用 equality saturation 做张量程序超优化](https://arxiv.org/abs/2609.12330)**（`2609.12330`）：统一 IR 表达高层张量表达式与 tile 化计算，用等式规则组合直接从表达式推导出 FlashAttention 式融合 kernel；attention kernel 在 decode 最高比 FlashAttention 快 1.87×，QK-normalized MLA / mHC 比 torch.compile 分别快 3.16× / 5.84×。
+- **[Dissecting GPU Utilization for LLM Inference on Nvidia Hopper](https://arxiv.org/abs/2609.12923)**（`2609.12923`）：用 8 个 NCU 计数器对齐的视图拆解 Hopper 上 vLLM/FlashAttention-3/cuBLASLt 的 SM 利用率——decode 阶段 dense GEMM 退化为小行矩阵乘，bfloat16 GMMA 固定 64 行 fragment，小 batch 只填满一小部分，把利用率缺口映射到 fragment fill、occupancy、stall、wave 量化与 kernel 选择。
+- **[Argus: 面向语义区域的跨层 GPU 性能测量编排](https://arxiv.org/abs/2609.12299)**（`2609.12299`）：围绕算子实现/pipeline 阶段等语义区域自动构造 probe 与程序变体、跨 compiler/hardware/system 后端采集并归因性能证据；44 个 persistent-GEMM/attention 配置改善 39 个，把 AlphaEvolve 几何平均加速从 5.4% 提到 8.9%。
+- **[Attention Quantization for Tabular Foundation Models](https://arxiv.org/abs/2609.13031)**（`2609.13031`）：对 Q/K/V 做 FP8 量化并用显式 FP8 矩阵乘指令加速 attention，关键是把测试行与训练行的量化误差对齐；Triton kernel 比 16-bit 快 1.7×，TabPFN-v3 / TabICLv2 无损。
+- **[How to grade the accuracy of the BLAS](https://arxiv.org/abs/2609.12307)**（`2609.12307`）：为低精度加速器上的高精度矩阵乘实现打「精度分」——A 级达经典浮点误差界、C 级满足 Strassen 类较弱界，并给出一套不可「作弊」的验证测试与对 LU/QR/Cholesky 的精度影响。
+- **[Vortex: 桥接极限压缩与高效 LLM 推理](https://arxiv.org/abs/2609.12208)**（`2609.12208`）：面向 systolic-array 加速器的最小硬件开销架构，用 bi-flow 执行 + codebook 级上下文稀疏，把向量量化(VQ)与输入依赖稀疏落地为实际效率；端到端 8.03×–23.7× 加速、5.68×–12.5× 降耗。
+- **[RunningTensor: 把线性注意力推广到高阶循环状态](https://arxiv.org/abs/2609.12814)**（`2609.12814`）：把线性注意力/SSM 的二阶（矩阵）循环状态推广到 o 阶张量——rank-1 外积更新、o-1 个向量 query 收缩读出；o=3 即可把工作记忆容量从 O(W²) 提到 O(W³)，仍保持 O(T) 线性。
 
 ## 数据源
 
