@@ -39,7 +39,3 @@ tags: [算子日报]
 - **[The Structure of Quantization Damage in LLMs](https://arxiv.org/abs/2609.01587)**（`2609.01587`，09-01）：用因果混合精度干预研究 PTQ 误差分布，指导把额外精度预算花在全局——量化算子位宽分配的实证依据。
 - **[Hardware Acceleration of Block-Diffusion LLM for Edge](https://arxiv.org/abs/2609.01084)**（`2609.01084`，09-01）：面向边缘设备的 block-diffusion LLM 加速，WIFiV-LPDDR 做 precision-tagged 读取、BRQ-KV 规范化 KV 缓存，缓解权重/KV 流量瓶颈。
 - **[Projection-based Low-rank Assembly in IgA](https://arxiv.org/abs/2609.01218)**（`2609.01218`，09-01）：面向等几何分析（IgA）的投影低秩装配，降低三维质量/刚度矩阵的装配与存储开销。
-
-## 数据源
-
-本日报由 open_eye 自动抓取 + Claude 摘要生成（arXiv 宽抓取后人工精选，仅收录 09-01 及之后提交的新论文）。

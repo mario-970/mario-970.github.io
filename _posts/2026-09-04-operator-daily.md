@@ -34,7 +34,3 @@ tags: [算子日报]
 - **[Unfolding the Leech Lattice: Fused Multi-Shell Decoding and VRAM Layouts for 2-Bit LLM Weights](https://arxiv.org/abs/2609.02652)**（`2609.02652`）：为 Leech 格 2-bit 向量量化补齐多壳解码 kernel，并量化 batch-1 decode 阶段 GEMV 的 serving 成本与 VRAM 布局。
 - **[Post-Training Ternarization of Qwen3-4B](https://arxiv.org/abs/2609.01962)**（`2609.01962`）：用 KOTMS 旋转 + E2M-ATQ 三值化 + GPTQ 式误差校正，端到端把 Qwen3-4B 转成 1.58-bit，评估有效位宽、存储压缩与部署。
 - **[FlashKAN: B-Spline KANs via Truncated Power Form](https://arxiv.org/abs/2609.01956)**（`2609.01956`）：用截断幂形式替换 KAN B-spline 激活的 Cox–de Boor 递归（原递归占前向 >90% 时间），降低激活原语的求值开销。
-
-## 数据源
-
-本日报由 open_eye 自动抓取 + Claude 摘要生成（arXiv 宽抓取后人工精选，仅收录上期之后的新条目）。

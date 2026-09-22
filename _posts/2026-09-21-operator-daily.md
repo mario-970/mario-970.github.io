@@ -56,7 +56,3 @@ tags: [算子日报]
 - **[Automated Instruction Encoding Synthesis for Modern GPU ISA Compression](https://arxiv.org/abs/2609.18662)**（`2609.18662`）：把指令布局建模为带约束的 slot 分配问题（CP-SAT），对 NVIDIA SASS 实例化：变长编码在 142 个 Blackwell kernel 上减指令足迹 33%，Ampere/Hopper 类似。面向 GPU 指令供应路径的 ISA 压缩。
 
 - **[Scaling Fourier-Based Sparse Matrix Analysis on GPUs](https://arxiv.org/abs/2609.20483)**（`2609.20483`）：BS-FFT（无损 Binary-Sparse FFT）+ 两种压缩（Elastic BS-FFT 采样频点、density-map 空间压缩），在 GPU 上扩展大稀疏矩阵（如大图邻接矩阵）的谱签名分析。面向 GPU 稀疏矩阵谱结构分析。
-
-## 数据源
-
-本日报由 open_eye 自动抓取 + Claude 摘要生成。

@@ -58,7 +58,3 @@ tags: [算子日报]
 - **[Q-Strata](https://arxiv.org/abs/2608.30564)**（`2608.30564`，08-31）：MoE LLM 分层比特分配的混合精度量化。
 - **[DAMP](https://arxiv.org/abs/2608.27513)**（`2608.27513`，08-27）：GDN/KDA 循环状态的混合精度量化，降低推理显存。
 - **[Sparse Fourier Neural Operators](https://arxiv.org/abs/2608.30070)**（`2608.30070`，08-31）：稀疏 FNO 在「选择 / 表示 / 执行」三个层面的稀疏化与开销权衡。
-
-## 数据源
-
-本日报由 open_eye 自动抓取 + Claude 摘要生成（arXiv 宽抓取后人工精选）。

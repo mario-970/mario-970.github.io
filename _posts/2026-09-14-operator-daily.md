@@ -45,7 +45,3 @@ tags: [算子日报]
 - **[How to grade the accuracy of the BLAS](https://arxiv.org/abs/2609.12307)**（`2609.12307`）：为低精度加速器上的高精度矩阵乘实现打「精度分」——A 级达经典浮点误差界、C 级满足 Strassen 类较弱界，并给出一套不可「作弊」的验证测试与对 LU/QR/Cholesky 的精度影响。
 - **[Vortex: 桥接极限压缩与高效 LLM 推理](https://arxiv.org/abs/2609.12208)**（`2609.12208`）：面向 systolic-array 加速器的最小硬件开销架构，用 bi-flow 执行 + codebook 级上下文稀疏，把向量量化(VQ)与输入依赖稀疏落地为实际效率；端到端 8.03×–23.7× 加速、5.68×–12.5× 降耗。
 - **[RunningTensor: 把线性注意力推广到高阶循环状态](https://arxiv.org/abs/2609.12814)**（`2609.12814`）：把线性注意力/SSM 的二阶（矩阵）循环状态推广到 o 阶张量——rank-1 外积更新、o-1 个向量 query 收缩读出；o=3 即可把工作记忆容量从 O(W²) 提到 O(W³)，仍保持 O(T) 线性。
-
-## 数据源
-
-本日报由 open_eye 自动抓取 + Claude 摘要生成（arXiv 宽抓取后人工精选，仅收录上期之后的新条目）。

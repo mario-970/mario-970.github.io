@@ -34,7 +34,3 @@ tags: [算子日报]
 - **[Scale-QLoRA: Code-Invariant Adapter Merging for Native 4-bit Microscaling LLMs](https://arxiv.org/abs/2609.04526)**（`2609.04526`，09-03）：在原生 4-bit microscaling（NVFP4 / MXFP4）checkpoint 上合并 LoRA，需经量化器回写重导出 scale，解决合并步骤不再「免费」的问题。
 - **[Fast Gauss Sums via Flash Attention](https://arxiv.org/abs/2609.04910)**（`2609.04910`，09-04）：复用 flash attention 的硬件感知工程，把高斯核求和（MMD / SVGD 等核方法核心）映射到 attention 原语上加速。
 - **[FlexPosit: Tunable Fractional Precision for LLM Inference Accelerators](https://arxiv.org/abs/2609.04724)**（`2609.04724`，09-04）：可调分数精度的 posit 数制用于 LLM 推理加速器，在精度与硬件效率间提供更细的权衡。
-
-## 数据源
-
-本日报由 open_eye 自动抓取 + Claude 摘要生成（arXiv 宽抓取后人工精选，仅收录上期之后的新条目）。
