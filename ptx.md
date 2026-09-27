@@ -4,8 +4,6 @@ title: PTX 专栏
 permalink: /ptx/
 ---
 
-# PTX 专栏
-
 PTX（Parallel Thread Execution）学习专栏：从零读懂 GPU 汇编。
 
 这是一个 48 期的系统学习计划，覆盖 NVIDIA PTX ISA 9.3 文档的大部分主要内容。每期一篇，配套官方文档与 Compiler Explorer 真实反汇编。
