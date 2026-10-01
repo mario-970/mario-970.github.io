@@ -1,0 +1,47 @@
+---
+layout: post
+title: "算子日报 · 2026-10-01"
+permalink: /operator-daily/2026-10-01/
+date: 2026-10-01 23:59:00 +0800
+tags: [算子日报]
+---
+
+> 每日汇总：CUDA 开源仓 Release Notes（算子）、芯片动态、arXiv 算子内核论文。
+
+## TL;DR
+
+- **「低精度快矩阵乘」今天第一次拿到了证书**：Strassen 这类快矩阵乘靠**跨行精确抵消**省乘法，但一旦把**不同 token 行混在一起求和再舍入**，后续 token 的贡献就会漏进前面的输出，**破坏 prefix invariance**（多选题打分必须只依赖允许的前缀）。Qwen2.5-14B-Instruct 上，两个**精度看着正常的 FP8 实现**在有 240 题的 OpenBookQA 上仍分别改掉了 **5.83% / 10.00%** 的答案，而 bf16 模型和已部署的 FP8 行内 kernel 一个都没改；更糟的是**所有 512 种二级 Strassen 符号变体的稳定性指标完全一样，困惑度却差 772.4×**——精度认证不了这件事。作者的解法是**在有界整数码上构造「可认证实现」**：各行独立量化、**精确混合抵消后再统一 rescale**，用 **49 次 block 乘法代替 64 次**，证书保证与指定的行内 int8 算子**逐位相等**，于是**选哪个实现变成纯粹的成本问题**。
+- **「批不变性」从工程口号变成可证明的性质**：**Vosti** 先把确定性形式化为「固定模型与部署配置下，同 prompt、同初始采样状态 → 各输出位置的 logits **逐位相同**」，然后实测 vLLM 的 batch-invariant 模式与 SGLang 的 deterministic 模式在部分执行变化下**并不成立**。它自己则把「**kernel 选择不得依赖运行时引擎状态**」升格为设计约束，并在**引擎/内核边界上切开证明**：Verus 归纳证明调度与分页前缀共享 KV cache 保 logits，另有一个 **Triton 分析器证明所选 kernel 在不同 batch、query 长度、分页 KV 布局下输出逐位相等**。
+- **attention 的稀疏与线性两条路线今天都在「结构性」上做文章**：视频 DiT 侧 **PARK** 指出基于「query/key 块均值」的检索有两处失配（query 聚合抹掉个体偏好、key 用欧氏聚类会把 QK 分数差异大的 key 归到一起），改为**保留每个原始 query 再在块内平均分布**、并用当前 query 变换 key 后聚类，配融合 kernel；**SparseEngine** 则把「稀疏优先」做成引擎级契约，用统一生命周期支持 **15 种方法**；**SwiLA** 把状态更新写成混合线性回归上的**在线 EM**，让**每个输出维度按输入动态选择分量**。state 量化侧，**Low-Discrepancy Dither** 给出一个反直觉结论：**确定性的黄金比 Weyl 抖动比随机舍入更接近全精度**，且**不花额外代价**——这与昨日 LeapQuant / STEPQuant 关于 recurrent state 的结论合起来，说明该子领域关心的已从位宽转向**误差动力学**。
+
+## 一、CUDA 开源仓 Release Notes（算子）
+
+> 本期无新条目。抓取窗口内唯一的新 release 是 **CCCL v3.4.3**（09-30），已收录于昨日（09-30 期）；`cudnn-frontend` 的 `v1.31.0.dev70443568`（09-29）为内部 CI 的 nightly 自构建（自述「Not a supported release」、只保留最近 14 个 tag），按前几期惯例不计入。CUTLASS v4.8.0、TensorRT v11.3、NCCL 2.32.3-1 / nccl4py-v0.6.0、CCCL python-1.2.1、cuda-python v13.4.3 / cuda-core-v1.2.1、cuda-quantum 0.16.0 等正式发布均已在 09-12～09-28 各期收录。
+
+## 二、芯片动态
+
+> 本期无新条目。NVIDIA Developer Blog 与 NVIDIA Blog 两个 RSS 源在 7 天窗口内均未抓到命中关键词的新文章。
+
+## 三、arXiv 论文（算子内核）
+
+- **[Beyond Accuracy: Prefix-Invariant Realizations of Low-Precision Fast Matrix Multiplication](https://arxiv.org/abs/2609.39816)**（`2609.39816`，09-30）：**快矩阵乘（如 Strassen）省乘法靠的是精确抵消**，但只要**把不同 token 行的和混在一起再舍入**，靠后 token 的贡献就会漏进靠前的输出，威胁 **prefix invariance**——多选题按似然打分要求分数只依赖其允许的前缀。作者在 **Qwen2.5-14B-Instruct** 上做了对照实验：两个**「精度修复到看起来正常」的 FP8 实现**，在只把允许前缀之后的文本替换成 bf16 模型自己的贪心续写时，仍分别改动了 240 题 OpenBookQA 中 **5.83% 与 10.00%** 的答案；而两个**行内（row-local）对照**——bf16 模型与一个**已部署的 FP8 矩阵乘 kernel**——一题都没改。进一步地，常用的稳定性判据**根本无法区分不同实现**：二级 Strassen 的**全部 512 种符号变体**在该判据上取值恒定，可同一模型上的 teacher-forced 困惑度却横跨 **772.4×**。作者于是**构造可认证的实现**：在**有界整数码**上让各 token 行**独立量化**，先**精确混合与抵消**再统一 rescale，二级 Strassen 只需 **49 次 block 乘法而非 64 次**；证书保证其结果与**同等量化规格下指定的行内经典 int8 算子逐位相等**，因此每个可认证实现都**继承后者的 prefix invariance**。对写 GEMM 的人，这条的落点是：**「快矩阵乘能不能用」不该由精度指标裁决，而应由一个把实现选择降格为成本问题的证书来裁决**。
+
+- **[Vosti: Specifying, Implementing, and Verifying Deterministic LLM Inference](https://arxiv.org/abs/2609.38981)**（`2609.38981`，09-30）：推理系统会变动 **batch 组成、prompt 分块、prefill/decode 划分以及 KV cache 的复用/驱逐/重算**，这些优化本不应当影响输出。vLLM 的 batch-invariant 模式与 SGLang 的 deterministic 模式都在追求这一目标，但**缺一个系统级的正式规范**。这篇先把**确定性 LLM 推理**形式化：给定模型与部署配置，**同 prompt、同初始采样状态**的请求，应在各对应输出位置产生**逐位相同的 logits**；而实测表明上述生产模式在**部分执行变化下并不满足**。**Vosti** 据此设计：**kernel 的选择独立于运行时引擎状态**，并把缓存的 KV 值**绑定到其逻辑 token 前缀**。其证明**沿引擎/GPU kernel 边界切开**——**Verus 归纳证明**确立调度与分页、前缀共享的 KV cache 保 logits，**Triton 分析器**则证明所选 kernel 在不同 batch、query 长度与分页 KV 布局下**输出逐位相等**。Vosti 在全部测试的执行变化下都产生逐位相同的 logits，且在 decode 为主的负载上性能与 vLLM 的 batch-invariant 模式相当。对算子组的价值有两层：**「kernel 选择不得依赖运行时状态」是一条可直接写进调度层的硬约束**；以及**用静态分析器证明 Triton kernel 的位级等价**，这对长期依赖「跑一遍看数值对不对」的算子验证方式是一个升级选项。
+
+- **[QATFactory: A Versatile, Deployment-Aligned Framework for Quantization-aware Training and Distillation of LLMs](https://arxiv.org/abs/2609.39223)**（`2609.39223`，09-30）：PTQ 在激进低比特下掉点，QAT 又常被训练硬件卡住——**H100 没有 FP4 Tensor Core**。**QATFactory** 的做法是**模拟部署期量化，而矩阵乘仍走 BF16**，于是可以在**不具备目标格式原生算力的硬件上做 NVFP4 训练**；它支持 **NVFP4、MXFP4 与 llama.cpp 的 Q4_K** 三种格式、稠密与 MoE 模型、全参与 LoRA 两种训练方式，并**直接把 checkpoint 导出到 vLLM 与 llama.cpp**，不额外做一次有损转换、也不给推理加开销。在 8B～230B 上，量化感知蒸馏（QAD）稳定优于强 PTQ 基线：**Qwen3.5-9B 上 NVFP4 平均 68.9%、MXFP4 平均 66.0%**，对应最佳 PTQ 为 65.4% 与 56.4%。文中两条发现对训练配方很实用：**最佳训练策略依赖具体格式**——NVFP4 在**只量化权重**时更好，MXFP4 则**权重与激活同时量化**才受益；在固定 token 预算下，**用更少的 32K 长序列**训练比用更多 4K 短序列平均高 **1.9 个点**。训练代码与 checkpoint 均已放出。
+
+- **[LampAttention: Look-Ahead Mixed-Precision FlashAttention for Dedicated Accelerators](https://arxiv.org/abs/2609.39361)**（`2609.39361`，09-30）：绝大多数 attention logit **用低精度算并不损害数值稳定性**，但现有 attention kernel 没有利用这一点。这篇做的是**硬件-算法协同设计**的混合精度 FlashAttention：**以 8-bit 格式累加 QK 乘积并求指数**，再**自适应地识别敏感子块并回退到 16-bit 重算**；作者同时给出了能高效执行该流水线的**专用加速器规格**。基于 Qwen3 与 Gemma 3 的模拟实验表明，**只需把少数子块改道到高精度**就足以恢复基线模型表现。要点在于「**先低精度全算，再按敏感度挑少数重算**」这一 pattern 与检索式稀疏 attention 的结构是同构的——区别只在于被判定的对象是「精度」而非「是否计算」。需注意其结果来自模拟与架构规格，尚无真实 kernel 的实测数据。
+
+- **[Switching Linear Attention](https://arxiv.org/abs/2609.39034)**（`2609.39034`，09-30）：softmax attention 表达力强但 KV cache 随序列线性增长，线性注意力有**常数显存与递推式推理**却表达力不足。**SwiLA** 从 **test-time regression** 框架导出递推式：把**状态更新规则写成混合线性回归模型上的在线 EM**，于是在测试时**每个输出维度按当前输入在多个线性注意力分量之间动态选择**，同时**保留定长的 recurrent state**。在联想召回、上下文内学习与语言建模三类基准上，SwiLA 明显缩小了与 softmax attention 的差距，并在若干设置上反超。对算子开发者，这里的结构含义是：**递推核心里多了一层「按输出维度选分量」的路由**，state 从单个矩阵变成一组分量的混合——这与今日另一篇 Low-Discrepancy Dither 讨论的「state 怎么存」正好是同一数据结构的两端。
+
+- **[Low-Discrepancy Dither for Quantized Recurrent State Caches](https://arxiv.org/abs/2609.39185)**（`2609.39185`，09-30）：Mamba 式与混合模型把历史压进**每个 token 都要重写的定长 recurrent state**，低精度存储省带宽，但**每一次舍入误差都会被喂回下一次更新并累积**。生产系统常采用**随机舍入**，这篇则追问：**这类 cache 到底该用哪种舍入规则？** 答案是**确定性的黄金比 Weyl 抖动**（golden-ratio Weyl dither）——**不需要随机数**，却在**纯递推与混合模型、多种存储格式、长解码跨度**上都**一致地比随机舍入更接近全精度**，且**不增加任何开销**。**round-to-nearest 的表现则不同**：它会**丢弃小更新**，误差持续增长，因此**在短评测里看着最好，长生成时反而远远落后**。作者用**差异（discrepancy）分析**解释了这一排序，并记录了若干**会悄悄抹掉该收益的实现陷阱**。结合昨日 LeapQuant（窗口边界量化 + outlier 补偿）与 STEPQuant（按误差大小与记忆寿命分配精度），三篇合看，recurrent state 量化的共识已经清晰：**关键不在位宽，而在误差如何随时间被更新规则放大或抑制**；今天这篇更进一步，指出**连随机化都不必要，一条确定性低差异序列就够**。
+
+- **[PARK: Accurate Block Retrieval for Sparse Attention in Video Diffusion Transformers](https://arxiv.org/abs/2609.38978)**（`2609.38978`，09-30）：DiT 视频生成被**全注意力的二次复杂度**卡住，块稀疏 attention 靠**检索重要块**降本，但**检索不准要么掉画质、要么白算**。作者指出用「**query 块与 key 块的均值表示**」做检索存在两处失配：**query 侧聚合失配**——在 Softmax 之前把 query 平均，**抹掉了各自的注意力偏好**；**key 侧聚类度量失配**——在原始 key 空间做欧氏聚类，会把**在当前 query 下 QK 分数相差很大**的 key 归到一组，其平均表示无法代表当前 query 对各个 key 的打分。**PARK** 是免训练方法：**保留每一个原始 query**，各自**独立地在 key 块上归一化注意力分布**，再在 query 块内对这些分布取平均；同时**用当前 query 的信息先变换 key 再聚类**，使**获得相似 QK 分数的 key 聚到一起**；另有**融合 GPU kernel** 摊掉块检索开销。在 HunyuanVideo 与 Wan 上，PARK 提升了块检索准确率，在保持生成质量的同时加速推理，在所比方法中取得最佳的质量-效率折中。与昨日收录的 PSA 同属视频 DiT 稀疏 attention，但切入点互补：**PSA 是先把结构找出来再用一个 kernel 吃掉所有 mask，PARK 则是承认检索本身才是误差来源、去修检索的度量**。
+
+- **[SparseEngine: Sparse-First Inference Engine](https://arxiv.org/abs/2609.39068)**（`2609.39068`，09-30）：长上下文 agent 会累积大量交互历史，压垮 KV cache 与 attention 计算。稀疏 attention 能降本，但**各方法的 cache 表示与工作流各异**，难以接入现有推理引擎，此前的稀疏 serving 抽象又只支持特定布局与流程。**SparseEngine** 从零做**稀疏优先**的引擎，核心是一份**共享的生命周期契约**：**每种方法自己掌控 KV 表示与计算，同时通过统一基础设施协调状态迁移**，从而**支持四大类共 15 种方法**。它另外提供两项跨请求的状态管理：**Chain Cache** 从保留下来的历史中**恢复 KV 驱逐类方法**，**可控的 Prefix-Cache Pruning** 则**在不破坏逻辑前缀匹配的前提下删除指定历史区段的 KV**。在保持各方法质量的前提下，带 KV 驱逐时吞吐提升 **10× 以上**，同等并发下解码快 **2.5× 以上**（对比 vLLM），agent 基准上端到端加速 **2× 以上**。代码开源于 `github.com/CURRENTF/SparseEngine`。这一条对算子组的意义在于**抽象层**：把「cache 布局」从引擎的固定假设变成方法的自有实现，正是稀疏 attention kernel 长期难以产品化的症结。
+
+- **[Reinforcement Learning-Guided Graph Transformations for SpTRSV Optimization](https://arxiv.org/abs/2609.40159)**（`2609.40159`，09-30）：**稀疏三角求解（SpTRSV）** 是科学计算的基础 kernel，但**稀疏三角矩阵固有的数据依赖**严重限制可并行度，也让负载划分变得困难。近年有**图变换**类方法通过改写依赖图来改善并行执行，但它们**依赖手工设计的启发式**，改成不同优化目标就很难重新适配。这篇把**图变换建模为序贯决策问题**，用 **RL agent 学习依赖矩阵的变换策略**。在真实稀疏矩阵上，最高实现 **94% 的层数（level）削减**与 **80% 的层代价变异系数（CoV）下降**，而最高情形下只改写了 **1.50% 的行**；平均而言层数减 **23%**、层代价 CoV 减 **29%**，仅重写 **0.82%** 的行。值得注意的是**启发式方法在层数上更激进（31%–46%）**，**RL 则在层代价 CoV 上取得最大平均降幅**——也就是说它擅长的是**平衡多个相互竞争的目标**，而这恰恰是手工启发式的软肋。作者进一步表明，学到的策略可经**课程学习与微调迁移到未见过的矩阵**，零样本实验则揭示了跨稀疏模式泛化的边界。对做稀疏求解/不规则 kernel 的人，这是「**用学习替代启发式**」在数值 kernel 层的一个完整样本，且**改动面极小（<1% 的行）**正是它能落地的前提。
+
+- **[SparLeak: Privacy Leakage from Sparse Attention in LLM Inference on Shared GPUs](https://arxiv.org/abs/2609.38830)**（`2609.38830`，09-30）：稀疏 attention 普遍用于加速长上下文推理，但其**输入相关的执行行为**带来了此前未被探讨的隐私风险。作者识别出一个新的 GPU 微架构侧信道 **SIMA（Sparsity-Induced Memory Access）**：**稀疏 attention 因秘密相关而产生的 KV cache 访问模式**。基于此的 **SparLeak** 是一个**分阶段攻击**：从 LLM 推理中提取 SIMA 轨迹，**prefill 阶段的轨迹用于推断 query 属性**，**decoding 阶段的轨迹用于重建自回归响应**——通过从页级观测重建近似 token 级稀疏度剖面，再配合基于画像的学习完成恢复。在 3 种 LLM 架构、3 种稀疏 attention 机制、3 个隐私敏感数据集上的评测中，**属性推断的平均攻击成功率达 90.9%，响应重建达 87.3%**，且是在真实 LLM serving 设置下取得的。作者发布了匿名化 SIMA 轨迹、攻击模型、评测脚本与文档。对写块稀疏 attention kernel 的人，这条的直接含义是：**kernel 的访存模式现在成了一个需要被审计的输出**——只要部署在共享 GPU 上，稀疏结构本身就会泄漏，而这类泄漏恰恰是算子实现层的选择决定的。
+
+- **[STELLA: A 16nm Spatio-Temporal Elastic Low-Latency CGRA for Multi-Stage Pipelined Applications](https://arxiv.org/abs/2609.39703)**（`2609.39703`，09-30）：LayerNorm、GeLU、FFT、循环卷积这类**非矩阵 ML kernel** 需要低延迟、高能效的空间加速器，而现有阵列**以 MatMul 为中心**并不适配。**STELLA** 是一个 **16nm 时空弹性 CGRA**，具备**快速配置通路、每 PE 的硬件循环控制**，以及**低延迟深流水的弹性互连结构**，实现时空数据复用。在 850 MHz 下达到最高 **110 GOPS/mm²**，相对基线 CGRA **有效 kernel 吞吐提升 4.84–7.14×**。收录它的理由是它摆在**「算子」这件事的另一端**：当低比特 matmul 已被证明可以「凑」出高精度（见今日首条），这些**不构成矩阵乘的逐元素与归约 kernel** 就成了剩下的、必须靠专用结构才划算的部分。
