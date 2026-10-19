@@ -34,7 +34,7 @@ PTX（Parallel Thread Execution）学习专栏：从零读懂 GPU 汇编。
 | 13 | [类型系统·Tensor 与访问模式](/ptx/13-tensor/) | §5.5 | 已完成 |
 | 14 | [操作数·类型信息与源/目标操作数](/ptx/14-operand-type-info/) | §6.1–6.3 | 已完成 |
 | 15 | [操作数·地址、数组、向量](/ptx/15-address-array-vector/) | §6.4 | 已完成 |
-| 16 | 操作数·类型转换与舍入 | §6.5–6.6 | 待写 |
+| 16 | [操作数·类型转换与舍入](/ptx/16-type-conversion-rounding/) | §6.5–6.6 | 已完成 |
 
 ## ABI 与内存一致性
 
